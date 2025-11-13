@@ -4,7 +4,7 @@ import streamlit as st
 from dotenv import load_dotenv
 from pinecone import Pinecone
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.prompts.chat import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
@@ -209,3 +209,4 @@ if prompt := st.chat_input("Ask your question..."):
         response = process_query(prompt)
         st.write(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
+

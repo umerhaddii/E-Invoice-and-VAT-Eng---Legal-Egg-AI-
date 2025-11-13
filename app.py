@@ -97,7 +97,7 @@ My goal is to provide users with the highest quality and most detailed legal inf
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 # Initialize Pinecone
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"), environment="us-east-1")
+pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
 index = pc.Index("electronicinvoice1")
 
 # Hugging Face embeddings for text similarity
@@ -209,5 +209,3 @@ if prompt := st.chat_input("Ask your question..."):
         response = process_query(prompt)
         st.write(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-

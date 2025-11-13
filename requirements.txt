@@ -2,10 +2,11 @@ streamlit
 python-dotenv
 torch
 pinecone
-langchain
-langchain-openai
-langchain-pinecone
-langchain-huggingface
-langchain-core
 Pillow
 sentence-transformers
+langchain==1.0.0
+langchain-core==1.0.0
+langchain-community==0.4
+langchain-openai==1.0.0
+langchain-pinecone
+langchain-huggingface==1.0.0

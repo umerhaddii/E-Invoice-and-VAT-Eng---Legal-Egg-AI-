@@ -5,10 +5,11 @@ from dotenv import load_dotenv
 from pinecone import Pinecone
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain.prompts.chat import ChatPromptTemplate
-from langchain.chains import RetrievalQA
 from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -34,7 +35,7 @@ I am a virtual assistant from Paragraf Lex, specializing in electronic invoicing
 Response Guidelines:
 
 **Article Integration:**  
-I will use relevant sections of the provided articles (segments) related to the user’s question.  
+I will use relevant sections of the provided articles (segments) related to the user's question.  
 I will quote or reference specific sections of laws, articles, or clauses when necessary.
 
 Response Structure:
@@ -73,7 +74,7 @@ Communication Style:
 - I will clearly explain any technical or legal terms.
 
 **Language Consistency:**  
-I will always respond **only in English**, regardless of the language used in the user’s question.  
+I will always respond **only in English**, regardless of the language used in the user's question.  
 If a question is written in another language, I will interpret it but provide the full answer in English.
 
 Article Integration (Segments):
@@ -119,10 +120,15 @@ Refined Query:"""
 
 refinement_prompt = PromptTemplate(input_variables=["original_question"], template=refinement_template)
 
-# LLM Chain for refinement
-refinement_chain = refinement_prompt | llm
+# LLM Chain for refinement using LCEL
+refinement_chain = refinement_prompt | llm | StrOutputParser()
 
-# Combined Retrieval Prompt with Mistral
+# Helper function to format documents
+def format_docs(docs):
+    """Format retrieved documents into a single string"""
+    return "\n\n".join(doc.page_content for doc in docs)
+
+# Combined Retrieval Prompt
 combined_prompt = ChatPromptTemplate.from_template(
     f"""{system_prompt}
 
@@ -133,23 +139,26 @@ combined_prompt = ChatPromptTemplate.from_template(
     Answer:"""
 )
 
-# RetrievalQA Chain
-retrieval_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=retriever,
-    chain_type_kwargs={"prompt": combined_prompt}
+# Create a retrieval chain using LCEL piping
+retrieval_chain = (
+    {
+        "context": retriever | format_docs,
+        "question": RunnablePassthrough()
+    }
+    | combined_prompt
+    | llm
+    | StrOutputParser()
 )
 
 # Processing Query
 def process_query(query: str):
     try:
-        # Step 1: Refine Query with Mistral
-        refined_query = refinement_chain.invoke({"original_question": query}).content
+        # Step 1: Refine Query
+        refined_query = refinement_chain.invoke({"original_question": query})
 
         # Step 2: Retrieve and Answer
-        response = retrieval_chain.invoke({"query": refined_query})
-        return response.get("result", "") if isinstance(response, dict) else str(response)
+        response = retrieval_chain.invoke(refined_query)
+        return response
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -169,7 +178,7 @@ with st.sidebar:
         "5. Are cross-border transactions subject to Serbian e-invoicing?",
         "6. What are the deadlines for recording input VAT in SEF?",
         "7. Do e-invoices require a digital signature in Serbia?",
-        "8. Are there exemptions to Serbia’s e-invoicing mandate?",
+        "8. Are there exemptions to Serbia's e-invoicing mandate?",
         "9. How to correct errors in e-invoices or VAT records?",
         "10. How do businesses register for the SEF platform?"
     ]
